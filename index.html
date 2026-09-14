@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcane VTT Nexus - Mesa Virtual & Ficha RPG Online</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PeerJS WebRTC Library for Peer-to-Peer Realtime Sync -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#0a0a0e',
+                            panel: '#12131c',
+                            panelLight: '#1a1c2b',
+                            border: '#2a2d45',
+                            gold: '#d4af37',
+                            goldHover: '#f3ca40',
+                            crimson: '#8b0000',
+                            accent: '#6366f1'
+                        }
+                    },
+                    fontFamily: {
+                        cinzel: ['Cinzel', 'serif'],
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #12131c; }
+        ::-webkit-scrollbar-thumb { background: #2a2d45; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #d4af37; }
+
+        #viewport { cursor: grab; }
+        #viewport.grabbing { cursor: grabbing; }
+        #viewport.measuring { cursor: crosshair; }
+        #viewport.fog-draw { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>'), pointer; }
+        #viewport.fog-erase { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%2322c55e" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m12 8 v8"/><path d="m8 12 h8"/></svg>'), pointer; }
+
+        @keyframes critGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(34, 197, 94, 0.6); }
+            50% { box-shadow: 0 0 5px rgba(34, 197, 94, 0.2); }
+        }
+        .crit-glow { animation: critGlow 1.5s infinite; }
+
+        @keyframes failGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.6); }
+            50% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); }
+        }
+        .fail-glow { animation: failGlow 1.5s infinite; }
+    </style>
+</head>
+<body class="bg-brand-dark text-slate-200 font-sans h-screen flex flex-col overflow-hidden select-none">
+
+    <header class="h-14 bg-brand-panel border-b border-brand-border flex items-center justify-between px-4 z-20 shrink-0">
+        <!-- Brand Title & Connection Status -->
+        <div class="flex items-center space-x-3">
+            <div class="text-brand-gold text-xl font-cinzel font-bold flex items-center gap-2">
+                <i class="fa-solid fa-dice-d20 text-brand-gold animate-pulse"></i>
+                <span>ARCANE <span class="text-xs text-slate-400 font-sans font-normal uppercase tracking-widest">NEXUS VTT</span></span>
+            </div>
+            <span class="text-brand-border">|</span>
+            <!-- Connection Pill -->
+            <div id="connection-pill" class="flex items-center gap-2 px-2.5 py-1 bg-brand-dark rounded-full border border-brand-border text-xs">
+                <span id="conn-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+                <span id="conn-status-text" class="text-slate-400 font-semibold">Offline</span>
+                <span id="room-code-display" class="font-mono font-bold text-brand-gold hidden"></span>
+            </div>
+        </div>
+
+        <!-- Role Badge and Multi-Room Controls -->
+        <div class="flex items-center gap-2">
+            <!-- Role Indicator -->
+            <span id="role-badge" class="px-3 py-1 bg-brand-gold/20 text-brand-gold border border-brand-gold/40 rounded-lg text-xs font-bold uppercase tracking-wider">
+                Mestre (DM)
+            </span>
+
+            <!-- Online Sync Button -->
+            <button onclick="openRoomModal()" class="px-3 py-1.5 bg-brand-panelLight hover:bg-brand-border border border-brand-border rounded-lg text-xs font-bold text-slate-200 flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-network-wired text-brand-gold"></i>
+                <span class="hidden sm:inline">Conexão Online</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- LEFT SIDEBAR: Controls & Sheets -->
+        <aside id="sidebar-left" class="w-96 bg-brand-panel border-r border-brand-border flex flex-col z-10 transition-all duration-300 shrink-0 relative">
+            <!-- Sidebar Navigation Tabs -->
+            <div class="flex border-b border-brand-border bg-brand-dark/50">
+                <button onclick="switchLeftTab('sheet')" id="tab-btn-sheet" class="flex-1 py-2.5 text-xs font-bold text-brand-gold border-b-2 border-brand-gold flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-user-shield"></i> Minha Ficha
+                </button>
+                <button onclick="switchLeftTab('tokens')" id="tab-btn-tokens" class="flex-1 py-2.5 text-xs font-bold text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-users"></i> Combatentes
+                </button>
+                <button onclick="switchLeftTab('dm-notes')" id="tab-btn-dm-notes" class="flex-1 py-2.5 text-xs font-bold text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-scroll"></i> Mestre
+                </button>
+            </div>
+
+            <!-- TAB 1: PLAYER SHEET -->
+            <div id="tab-content-sheet" class="flex-1 overflow-y-auto p-4 space-y-4">
+                <!-- Character Header Card -->
+                <div class="bg-brand-panelLight border border-brand-border rounded-xl p-3 space-y-2">
+                    <div class="flex items-center gap-3">
+                        <img id="sheet-avatar" src="https://placehold.co/100x100/1c1e2e/d4af37?text=Hero" class="w-14 h-14 rounded-lg object-cover border border-brand-gold">
+                        <div>
+                            <h2 id="sheet-name" class="font-cinzel text-base font-bold text-brand-gold">Valeros Solradiante</h2>
+                            <p id="sheet-class-race" class="text-xs text-slate-400">Paladino • Humano (Nível 5)</p>
+                            <span class="text-[10px] text-emerald-400 font-bold">Proficiência: +3</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick HP Controls -->
+                <div class="bg-brand-panelLight border border-brand-border rounded-xl p-3 space-y-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-bold text-slate-300">HP Atual: <span id="sheet-hp-curr">35</span>/<span id="sheet-hp-max">42</span></span>
+                        <span id="sheet-hp-percent" class="text-emerald-400 font-bold">83%</span>
+                    </div>
+                    <div class="w-full h-3 bg-brand-dark rounded-full overflow-hidden p-0.5 border border-brand-border">
+                        <div id="sheet-hp-bar" class="h-full bg-emerald-500 rounded-full transition-all" style="width: 83%"></div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-1 pt-1">
+                        <button onclick="adjustPlayerHP(-5)" class="py-1 bg-red-950/40 border border-red-800/40 text-red-300 rounded text-xs font-bold hover:bg-red-900/60">-5</button>
+                        <button onclick="adjustPlayerHP(-1)" class="py-1 bg-red-950/40 border border-red-800/40 text-red-300 rounded text-xs font-bold hover:bg-red-900/60">-1</button>
+                        <button onclick="adjustPlayerHP(1)" class="py-1 bg-emerald-950/40 border border-emerald-800/40 text-emerald-300 rounded text-xs font-bold hover:bg-emerald-900/60">+1</button>
+                        <button onclick="adjustPlayerHP(5)" class="py-1 bg-emerald-950/40 border border-emerald-800/40 text-emerald-300 rounded text-xs font-bold hover:bg-emerald-900/60">+5</button>
+                    </div>
+                </div>
+
+                <!-- Roll Advantage Selector -->
+                <div class="flex items-center justify-between text-xs bg-brand-dark p-2 rounded-lg border border-brand-border">
+                    <span class="font-bold text-slate-400">Modo d20:</span>
+                    <div class="flex gap-1">
+                        <button id="adv-norm" onclick="setRollAdvantage('normal')" class="px-2 py-0.5 bg-brand-gold text-brand-dark font-bold rounded">Norm</button>
+                        <button id="adv-vant" onclick="setRollAdvantage('adv')" class="px-2 py-0.5 bg-brand-panelLight text-slate-400 font-bold rounded border border-brand-border">Vant</button>
+                        <button id="adv-desv" onclick="setRollAdvantage('disadv')" class="px-2 py-0.5 bg-brand-panelLight text-slate-400 font-bold rounded border border-brand-border">Desv</button>
+                    </div>
+                </div>
+
+                <!-- Core Attributes -->
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="rollStat('Força', state.sheet.mods.str)" class="bg-brand-panelLight border border-brand-border hover:border-brand-gold p-2 rounded-lg text-center transition group">
+                        <span class="block text-[10px] text-slate-400 uppercase font-bold">FOR</span>
+                        <span id="stat-str-val" class="text-base font-black text-white group-hover:text-brand-gold">16 (+3)</span>
+                    </button>
+                    <button onclick="rollStat('Destreza', state.sheet.mods.dex)" class="bg-brand-panelLight border border-brand-border hover:border-brand-gold p-2 rounded-lg text-center transition group">
+                        <span class="block text-[10px] text-slate-400 uppercase font-bold">DES</span>
+                        <span id="stat-dex-val" class="text-base font-black text-white group-hover:text-brand-gold">14 (+2)</span>
+                    </button>
+                    <button onclick="rollStat('Constituição', state.sheet.mods.con)" class="bg-brand-panelLight border border-brand-border hover:border-brand-gold p-2 rounded-lg text-center transition group">
+                        <span class="block text-[10px] text-slate-400 uppercase font-bold">CON</span>
+                        <span id="stat-con-val" class="text-base font-black text-white group-hover:text-brand-gold">15 (+2)</span>
+                    </button>
+                    <button onclick="rollStat('Inteligência', state.sheet.mods.int)" class="bg-brand-panelLight border border-brand-border hover:border-brand-gold p-2 rounded-lg text-center transition group">
+                        <span class="block text-[10px] text-slate-400 uppercase font-bold">INT</span>
+                        <span id="stat-int-val" class="text-base font-black text-white group-hover:text-brand-gold">10 (+0)</span>
+                    </button>
+                    <button onclick="rollStat('Sabedoria', state.sheet.mods.wis)" class="bg-brand-panelLight border border-brand-border hover:border-brand-gold p-2 rounded-lg text-center transition group">
+                        <span class="block text-[10px] text-slate-400 uppercase font-bold">SAB</span>
+                        <span id="stat-wis-val" class="text-base font-black text-white group-hover:text-brand-gold">12 (+1)</span>
+                    </button>
+                    <button onclick="rollStat('Carisma', state.sheet.mods.cha)" class="bg-brand-panelLight border border-brand-border hover:border-brand-gold p-2 rounded-lg text-center transition group">
+                        <span class="block text-[10px] text-slate-400 uppercase font-bold">CAR</span>
+                        <span id="stat-cha-val" class="text-base font-black text-white group-hover:text-brand-gold">14 (+2)</span>
+                    </button>
+                </div>
+
+                <!-- Attacks & Spells -->
+                <div class="space-y-2">
+                    <span class="text-xs font-bold text-brand-gold uppercase tracking-wider block border-b border-brand-border pb-1">Ataques Rápidos</span>
+                    <div id="sheet-attacks-list" class="space-y-2">
+                        <!-- Rendered via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: TOKENS & INITIATIVE -->
+            <div id="tab-content-tokens" class="flex-1 overflow-y-auto p-4 space-y-4 hidden">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-300">Ordem de Iniciativa</span>
+                    <button onclick="rollInitiativeAll()" class="px-2 py-1 bg-brand-gold text-brand-dark font-bold text-xs rounded hover:bg-brand-goldHover">Rolar Todas</button>
+                </div>
+                <div id="initiative-list" class="space-y-2">
+                    <!-- Tokens list -->
+                </div>
+            </div>
+
+            <!-- TAB 3: DM NOTES -->
+            <div id="tab-content-dm-notes" class="flex-1 overflow-y-auto p-4 space-y-3 hidden">
+                <span class="text-xs font-bold text-brand-gold block">Anotações Secretas do Mestre</span>
+                <textarea id="dm-secret-notes" rows="12" placeholder="Escreva informações da aventura, mistérios, HP de monstros..." class="w-full bg-brand-panelLight border border-brand-border rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-brand-gold resize-none" oninput="saveDMNotes()"></textarea>
+            </div>
+        </aside>
+
+        <!-- CENTER VIEWPORT: CANVAS & HUD OVERLAY -->
+        <main class="flex-1 relative bg-brand-dark overflow-hidden flex items-center justify-center">
+            <!-- HUD Toolbar Top Center -->
+            <div class="absolute top-4 z-10 bg-brand-panel/90 backdrop-blur border border-brand-border px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 text-slate-300 shadow-2xl">
+                <button id="tool-select" onclick="setCanvasTool('select')" class="px-2.5 py-1 rounded font-semibold bg-brand-gold text-brand-dark flex items-center gap-1">
+                    <i class="fa-solid fa-hand-pointer"></i> Mover
+                </button>
+                <button id="tool-measure" onclick="setCanvasTool('measure')" class="px-2.5 py-1 rounded font-semibold hover:bg-brand-border text-slate-300 flex items-center gap-1">
+                    <i class="fa-solid fa-ruler"></i> Medir
+                </button>
+
+                <!-- DM Only Fog Tools -->
+                <div id="dm-fog-tools" class="flex items-center gap-1 border-l border-brand-border pl-2">
+                    <button id="tool-fog-draw" onclick="setCanvasTool('fog-draw')" class="px-2 py-1 rounded hover:bg-red-950/40 text-red-400 font-semibold" title="Cobrir com Névoa">
+                        <i class="fa-solid fa-eye-slash"></i> Névoa
+                    </button>
+                    <button id="tool-fog-erase" onclick="setCanvasTool('fog-erase')" class="px-2 py-1 rounded hover:bg-emerald-950/40 text-emerald-400 font-semibold" title="Revelar Névoa">
+                        <i class="fa-solid fa-eye"></i> Revelar
+                    </button>
+                </div>
+
+                <div class="h-4 w-px bg-brand-border mx-1"></div>
+
+                <button onclick="toggleGrid()" id="btn-grid" class="p-1 rounded text-brand-gold hover:bg-brand-border"><i class="fa-solid fa-border-all"></i></button>
+                <button onclick="openMapModal()" class="p-1 rounded text-slate-300 hover:text-brand-gold" title="Alterar Mapa"><i class="fa-solid fa-map"></i></button>
+                <button onclick="openTokenModal()" class="p-1 rounded text-slate-300 hover:text-brand-gold" title="Adicionar Token"><i class="fa-solid fa-user-plus"></i></button>
+            </div>
+
+            <!-- Canvas Element -->
+            <div id="canvas-container" class="relative w-full h-full">
+                <canvas id="viewport" class="block w-full h-full"></canvas>
+            </div>
+        </main>
+
+        <!-- RIGHT SIDEBAR: DICE LOG & YOUTUBE AUDIO PLAYER -->
+        <aside id="sidebar-right" class="w-80 bg-brand-panel border-l border-brand-border flex flex-col z-10 shrink-0">
+            <!-- Sidebar Header Tabs -->
+            <div class="flex border-b border-brand-border bg-brand-dark/50">
+                <button onclick="switchRightTab('chat')" id="tab-btn-chat" class="flex-1 py-2.5 text-xs font-bold text-brand-gold border-b-2 border-brand-gold flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-comments"></i> Chat & Dados
+                </button>
+                <button onclick="switchRightTab('audio')" id="tab-btn-audio" class="flex-1 py-2.5 text-xs font-bold text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-music"></i> Trilhas YouTube
+                </button>
+            </div>
+
+            <!-- TAB 1: DICE LOG & ROLL TOOLBAR -->
+            <div id="tab-content-chat" class="flex-1 flex flex-col p-3 overflow-hidden">
+                <!-- Secret DM Roll Checkbox -->
+                <div id="dm-secret-roll-container" class="mb-2 p-2 bg-brand-panelLight rounded-lg border border-brand-border flex items-center justify-between text-xs">
+                    <span class="text-slate-300 font-semibold flex items-center gap-1.5"><i class="fa-solid fa-user-secret text-brand-gold"></i> Rolagem Secreta (DM)</span>
+                    <input type="checkbox" id="check-secret-roll" class="accent-brand-gold w-4 h-4 cursor-pointer">
+                </div>
+
+                <!-- Dice Buttons Grid -->
+                <div class="grid grid-cols-4 gap-1.5 mb-3">
+                    <button onclick="rollDice(1, 4)" class="py-1.5 bg-brand-panelLight border border-brand-border hover:border-brand-gold rounded text-xs font-bold text-brand-gold">d4</button>
+                    <button onclick="rollDice(1, 6)" class="py-1.5 bg-brand-panelLight border border-brand-border hover:border-brand-gold rounded text-xs font-bold text-brand-gold">d6</button>
+                    <button onclick="rollDice(1, 8)" class="py-1.5 bg-brand-panelLight border border-brand-border hover:border-brand-gold rounded text-xs font-bold text-brand-gold">d8</button>
+                    <button onclick="rollDice(1, 10)" class="py-1.5 bg-brand-panelLight border border-brand-border hover:border-brand-gold rounded text-xs font-bold text-brand-gold">d10</button>
+                    <button onclick="rollDice(1, 12)" class="py-1.5 bg-brand-panelLight border border-brand-border hover:border-brand-gold rounded text-xs font-bold text-brand-gold">d12</button>
+                    <button onclick="rollDice(1, 20)" class="py-1.5 bg-brand-gold/20 border border-brand-gold hover:bg-brand-gold/30 rounded text-xs font-black text-brand-gold">d20</button>
+                    <button onclick="rollDice(1, 100)" class="py-1.5 bg-brand-panelLight border border-brand-border hover:border-brand-gold rounded text-xs font-bold text-brand-gold">d100</button>
+                    <button onclick="clearRollLog()" class="py-1.5 bg-red-950/40 border border-red-800/40 text-red-400 rounded text-xs font-bold">Limpar</button>
+                </div>
+
+                <!-- Dice Feed Log -->
+                <div id="dice-log-feed" class="flex-1 overflow-y-auto space-y-2 pr-1">
+                    <!-- Dynamic Roll Entries -->
+                </div>
+            </div>
+
+            <!-- TAB 2: SYNCHRONIZED YOUTUBE PLAYER -->
+            <div id="tab-content-audio" class="flex-1 overflow-y-auto p-4 space-y-4 hidden">
+                <div class="bg-brand-panelLight border border-brand-border rounded-xl p-3 space-y-3">
+                    <span class="text-xs font-bold text-brand-gold block"><i class="fa-brands fa-youtube text-red-500 mr-1"></i> Trilha de Áudio Sincronizada</span>
+                    
+                    <div class="space-y-2">
+                        <label class="block text-[10px] text-slate-400 uppercase font-bold">Link ou ID do Vídeo YouTube</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="yt-url-input" placeholder="https://www.youtube.com/watch?v=..." class="flex-1 bg-brand-dark border border-brand-border rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brand-gold">
+                            <button onclick="syncYouTubeTrack()" class="px-3 py-1.5 bg-brand-gold hover:bg-brand-goldHover text-brand-dark rounded text-xs font-bold">Tocar</button>
+                        </div>
+                    </div>
+
+                    <!-- Hidden YouTube iFrame API container -->
+                    <div class="hidden">
+                        <div id="yt-player-container"></div>
+                    </div>
+
+                    <!-- Audio Status & Controls -->
+                    <div class="flex items-center justify-between border-t border-brand-border/60 pt-3">
+                        <button onclick="toggleAudioPlayState()" id="yt-play-btn" class="px-4 py-2 bg-brand-gold text-brand-dark font-bold rounded-lg text-xs flex items-center gap-2">
+                            <i class="fa-solid fa-play"></i> Play / Pause Global
+                        </button>
+                    </div>
+
+                    <!-- Independent Local Volume Control -->
+                    <div class="space-y-1.5 border-t border-brand-border/60 pt-3">
+                        <div class="flex justify-between text-xs text-slate-300">
+                            <span>Meu Volume Local (Individual):</span>
+                            <span id="local-vol-text" class="font-bold text-brand-gold">50%</span>
+                        </div>
+                        <input type="range" id="local-vol-slider" min="0" max="100" value="50" oninput="adjustLocalVolume(this.value)" class="w-full accent-brand-gold bg-brand-dark h-1.5 rounded-lg cursor-pointer">
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- MODAL: ONLINE ROOM / CONNECTION MANAGER -->
+    <div id="modal-room" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-brand-panel border border-brand-border rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-5">
+            <div class="flex justify-between items-center border-b border-brand-border pb-3">
+                <h3 class="font-cinzel text-lg font-bold text-brand-gold flex items-center gap-2">
+                    <i class="fa-solid fa-network-wired"></i> Conexão Multiplayer P2P
+                </h3>
+                <button onclick="closeRoomModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <!-- Role Choice -->
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-300 block">Selecione seu Papel na Mesa:</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="role-btn-dm" onclick="selectRole('dm')" class="py-2 bg-brand-gold text-brand-dark font-bold text-xs rounded-lg border border-brand-gold">Mestre (DM)</button>
+                    <button id="role-btn-player" onclick="selectRole('player')" class="py-2 bg-brand-panelLight text-slate-300 font-bold text-xs rounded-lg border border-brand-border">Jogador</button>
+                </div>
+            </div>
+
+            <!-- DM Room Creation -->
+            <div id="dm-room-section" class="space-y-3">
+                <button onclick="hostNewRoom()" class="w-full py-2.5 bg-brand-gold hover:bg-brand-goldHover text-brand-dark rounded-xl font-bold text-xs shadow-lg transition">
+                    Criar Nova Sala do Mestre
+                </button>
+            </div>
+
+            <!-- Player Join Room -->
+            <div id="player-room-section" class="space-y-3">
+                <label class="text-xs font-bold text-slate-300 block">Código da Sala do Mestre:</label>
+                <div class="flex gap-2">
+                    <input type="text" id="input-room-code" placeholder="Ex: ARCANE-ROOM-8X92" class="flex-1 bg-brand-dark border border-brand-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-gold font-mono">
+                    <button onclick="joinRoom()" class="px-4 py-2 bg-brand-gold text-brand-dark font-bold text-xs rounded-xl">Entrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: MAP CHANGE -->
+    <div id="modal-map" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-brand-panel border border-brand-border rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4">
+            <h3 class="font-cinzel text-base font-bold text-brand-gold">Alterar Battlemap de Fundo</h3>
+            <input type="url" id="input-map-url" placeholder="URL da imagem (https://...)" class="w-full bg-brand-dark border border-brand-border rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-gold">
+            <div class="flex justify-end gap-2">
+                <button onclick="closeMapModal()" class="px-4 py-2 bg-brand-panelLight text-slate-300 rounded text-xs">Cancelar</button>
+                <button onclick="applyNewMap()" class="px-4 py-2 bg-brand-gold text-brand-dark font-bold rounded text-xs">Aplicar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- YOUTUBE IFRAME API SCRIPT -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+
+    <script>
+        /* ==========================================================================
+           GLOBAL APPLICATION STATE & REALTIME WEBRTC SYNC ENGINE
+           ========================================================================== */
+        const state = {
+            role: 'dm', // 'dm' or 'player'
+            roomId: '',
+            peer: null,
+            connections: [],
+            activeTool: 'select', // 'select', 'measure', 'fog-draw', 'fog-erase'
+            showGrid: true,
+            gridSize: 50,
+            zoom: 1,
+            panX: 0,
+            panY: 0,
+            measureStart: null,
+            measureEnd: null,
+            bgImage: null,
+            fogRects: [], // Array of hidden fog shapes
+            tokens: [],
+            selectedTokenId: null,
+            rollAdvantage: 'normal',
+            sheet: {
+                name: "Valeros Solradiante",
+                raceClass: "Paladino • Humano (Nível 5)",
+                hpMax: 42,
+                hpCurrent: 35,
+                profBonus: 3,
+                attributes: { str: 16, dex: 14, con: 15, int: 10, wis: 12, cha: 14 },
+                mods: { str: 3, dex: 2, con: 2, int: 0, wis: 1, cha: 2 },
+                attacks: [
+                    { name: "Espada Longa Sagrada", hit: 6, dmgDice: "1d8+3", type: "Cortante/Radiano" },
+                    { name: "Escudo Impacto", hit: 6, dmgDice: "1d6+3", type: "Concussão" }
+                ]
+            }
+        };
+
+        let ytPlayer = null;
+        let audioCtx = null;
+        const canvas = document.getElementById('viewport');
+        const ctx = canvas.getContext('2d');
+
+        window.onload = function() {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Canvas Listeners
+            canvas.addEventListener('mousedown', handleCanvasMouseDown);
+            canvas.addEventListener('mousemove', handleCanvasMouseMove);
+            canvas.addEventListener('mouseup', handleCanvasMouseUp);
+            canvas.addEventListener('wheel', handleCanvasWheel, { passive: false });
+
+            // Default Setup
+            loadDefaultData();
+            renderSheetUI();
+            requestAnimationFrame(renderLoop);
+        };
+
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+
+        function loadDefaultData() {
+            createDefaultMapPattern();
+
+            state.tokens = [
+                { id: 'tok-1', name: 'Valeros', hp: 35, maxHp: 42, ac: 18, color: '#6366f1', x: 150, y: 150, size: 1, hidden: false, initiative: 15 },
+                { id: 'tok-2', name: 'Goblin Chefe', hp: 22, maxHp: 22, ac: 14, color: '#ef4444', x: 350, y: 150, size: 1, hidden: false, initiative: 11 }
+            ];
+
+            updateInitiativeUI();
+        }
+
+        function createDefaultMapPattern() {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 1000;
+            tempCanvas.height = 1000;
+            const tCtx = tempCanvas.getContext('2d');
+            tCtx.fillStyle = '#141624';
+            tCtx.fillRect(0, 0, 1000, 1000);
+
+            // Subtle dungeon tiles
+            tCtx.strokeStyle = '#22263d';
+            tCtx.lineWidth = 1;
+            for(let x=0; x<1000; x+=50) { tCtx.beginPath(); tCtx.moveTo(x, 0); tCtx.lineTo(x, 1000); tCtx.stroke(); }
+            for(let y=0; y<1000; y+=50) { tCtx.beginPath(); tCtx.moveTo(0, y); tCtx.lineTo(1000, y); tCtx.stroke(); }
+
+            const img = new Image();
+            img.src = tempCanvas.toDataURL();
+            img.onload = () => { state.bgImage = img; };
+        }
+
+        function renderLoop() {
+            ctx.save();
+            ctx.fillStyle = '#0a0a0e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Apply Camera View Transform
+            ctx.translate(canvas.width / 2 + state.panX, canvas.height / 2 + state.panY);
+            ctx.scale(state.zoom, state.zoom);
+
+            // 1. Draw Map Image
+            if (state.bgImage) {
+                const imgW = state.bgImage.width;
+                const imgH = state.bgImage.height;
+                ctx.drawImage(state.bgImage, -imgW / 2, -imgH / 2);
+            }
+
+            // 2. Draw Grid
+            if (state.showGrid) {
+                ctx.strokeStyle = 'rgba(212, 175, 55, 0.12)';
+                ctx.lineWidth = 1;
+                for (let x = -1000; x <= 1000; x += state.gridSize) {
+                    ctx.beginPath(); ctx.moveTo(x, -1000); ctx.lineTo(x, 1000); ctx.stroke();
+                }
+                for (let y = -1000; y <= 1000; y += state.gridSize) {
+                    ctx.beginPath(); ctx.moveTo(-1000, y); ctx.lineTo(1000, y); ctx.stroke();
+                }
+            }
+
+            // 3. Draw Tokens
+            state.tokens.forEach(token => {
+                if (token.hidden && state.role !== 'dm') return; // Hide DM secret tokens from players
+
+                ctx.save();
+                ctx.translate(token.x, token.y);
+                const r = (state.gridSize * token.size) / 2 - 2;
+
+                if (token.hidden) ctx.globalAlpha = 0.5;
+
+                // Selection Ring
+                if (token.id === state.selectedTokenId) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, r + 4, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#d4af37';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+
+                // Base Body
+                ctx.beginPath();
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.fillStyle = token.color;
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                // Name Initials
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 13px Inter';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(token.name.substring(0, 2).toUpperCase(), 0, 0);
+
+                // HP Bar
+                const barW = r * 2;
+                const hpRatio = Math.max(0, Math.min(1, token.hp / token.maxHp));
+                ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                ctx.fillRect(-r, -r - 10, barW, 5);
+                ctx.fillStyle = hpRatio > 0.5 ? '#22c55e' : '#ef4444';
+                ctx.fillRect(-r, -r - 10, barW * hpRatio, 5);
+
+                ctx.restore();
+            });
+
+            // 4. Draw Fog of War Layer
+            if (state.role === 'dm') {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'; // DM sees translucent fog
+            } else {
+                ctx.fillStyle = 'rgba(10, 10, 14, 0.98)'; // Players see pitch black
+            }
+            state.fogRects.forEach(rect => {
+                ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+            });
+
+            // 5. Draw Measurement Ruler
+            if (state.measureStart && state.measureEnd) {
+                ctx.beginPath();
+                ctx.moveTo(state.measureStart.x, state.measureStart.y);
+                ctx.lineTo(state.measureEnd.x, state.measureEnd.y);
+                ctx.strokeStyle = '#d4af37';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 6]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                const distPx = Math.hypot(state.measureEnd.x - state.measureStart.x, state.measureEnd.y - state.measureStart.y);
+                const feet = ((distPx / state.gridSize) * 5).toFixed(0);
+                
+                ctx.fillStyle = '#d4af37';
+                ctx.font = 'bold 12px Inter';
+                ctx.fillText(`${feet} ft`, state.measureEnd.x + 10, state.measureEnd.y - 10);
+            }
+
+            ctx.restore();
+            requestAnimationFrame(renderLoop);
+        }
+
+        function screenToWorld(sx, sy) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (sx - rect.left - canvas.width / 2 - state.panX) / state.zoom,
+                y: (sy - rect.top - canvas.height / 2 - state.panY) / state.zoom
+            };
+        }
+
+        let isMouseDown = false;
+        let fogStart = null;
+
+        function handleCanvasMouseDown(e) {
+            const wp = screenToWorld(e.clientX, e.clientY);
+            isMouseDown = true;
+
+            if (state.activeTool === 'measure') {
+                state.measureStart = wp;
+                state.measureEnd = wp;
+                return;
+            }
+
+            if (state.activeTool === 'fog-draw' || state.activeTool === 'fog-erase') {
+                fogStart = wp;
+                return;
+            }
+
+            // Select Token
+            const clicked = state.tokens.find(t => Math.hypot(t.x - wp.x, t.y - wp.y) <= (state.gridSize * t.size) / 2);
+            if (clicked) {
+                state.selectedTokenId = clicked.id;
+            } else {
+                state.selectedTokenId = null;
+            }
+        }
+
+        function handleCanvasMouseMove(e) {
+            if (!isMouseDown) return;
+            const wp = screenToWorld(e.clientX, e.clientY);
+
+            if (state.activeTool === 'measure') {
+                state.measureEnd = wp;
+                return;
+            }
+
+            if (state.selectedTokenId && state.activeTool === 'select') {
+                const token = state.tokens.find(t => t.id === state.selectedTokenId);
+                if (token) {
+                    // Snap to half grid
+                    token.x = Math.round(wp.x / (state.gridSize/2)) * (state.gridSize/2);
+                    token.y = Math.round(wp.y / (state.gridSize/2)) * (state.gridSize/2);
+                    broadcastState();
+                }
+            } else if (!state.selectedTokenId && state.activeTool === 'select') {
+                state.panX += e.movementX;
+                state.panY += e.movementY;
+            }
+        }
+
+        function handleCanvasMouseUp(e) {
+            if (isMouseDown && (state.activeTool === 'fog-draw' || state.activeTool === 'fog-erase') && fogStart) {
+                const wp = screenToWorld(e.clientX, e.clientY);
+                const rect = {
+                    x: Math.min(fogStart.x, wp.x),
+                    y: Math.min(fogStart.y, wp.y),
+                    w: Math.abs(wp.x - fogStart.x),
+                    h: Math.abs(wp.y - fogStart.y)
+                };
+                if (state.activeTool === 'fog-draw') {
+                    state.fogRects.push(rect);
+                } else {
+                    // Simple erase intersection check
+                    state.fogRects = state.fogRects.filter(r => !(rect.x < r.x + r.w && rect.x + rect.w > r.x && rect.y < r.y + r.h && rect.y + rect.h > r.y));
+                }
+                broadcastState();
+            }
+
+            isMouseDown = false;
+            state.measureStart = null;
+            state.measureEnd = null;
+            fogStart = null;
+        }
+
+        function handleCanvasWheel(e) {
+            e.preventDefault();
+            const factor = e.deltaY < 0 ? 1.1 : 0.9;
+            state.zoom = Math.max(0.3, Math.min(3, state.zoom * factor));
+        }
+
+        function selectRole(r) {
+            state.role = r;
+            document.getElementById('role-badge').innerText = r === 'dm' ? 'Mestre (DM)' : 'Jogador';
+            document.getElementById('role-btn-dm').className = r === 'dm' ? 'py-2 bg-brand-gold text-brand-dark font-bold text-xs rounded-lg' : 'py-2 bg-brand-panelLight text-slate-300 text-xs rounded-lg';
+            document.getElementById('role-btn-player').className = r === 'player' ? 'py-2 bg-brand-gold text-brand-dark font-bold text-xs rounded-lg' : 'py-2 bg-brand-panelLight text-slate-300 text-xs rounded-lg';
+            document.getElementById('dm-room-section').classList.toggle('hidden', r !== 'dm');
+            document.getElementById('player-room-section').classList.toggle('hidden', r !== 'player');
+            document.getElementById('dm-fog-tools').classList.toggle('hidden', r !== 'dm');
+            document.getElementById('dm-secret-roll-container').classList.toggle('hidden', r !== 'dm');
+        }
+
+        function hostNewRoom() {
+            const code = 'ARCANE-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+            state.peer = new Peer(code);
+
+            state.peer.on('open', (id) => {
+                state.roomId = id;
+                updateConnStatus(true, `Sala: ${id}`);
+                closeRoomModal();
+            });
+
+            state.peer.on('connection', (conn) => {
+                state.connections.push(conn);
+                conn.on('data', (data) => handlePeerData(data));
+            });
+        }
+
+        function joinRoom() {
+            const code = document.getElementById('input-room-code').value.trim();
+            if (!code) return;
+
+            state.peer = new Peer();
+            state.peer.on('open', () => {
+                const conn = state.peer.connect(code);
+                state.connections.push(conn);
+                conn.on('open', () => {
+                    updateConnStatus(true, `Conectado: ${code}`);
+                    closeRoomModal();
+                });
+                conn.on('data', (data) => handlePeerData(data));
+            });
+        }
+
+        function updateConnStatus(online, text) {
+            document.getElementById('conn-dot').className = online ? 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse' : 'w-2 h-2 rounded-full bg-slate-500';
+            document.getElementById('conn-status-text').innerText = online ? 'Online' : 'Offline';
+            document.getElementById('room-code-display').innerText = text;
+            document.getElementById('room-code-display').classList.remove('hidden');
+        }
+
+        function broadcastState() {
+            if (state.role !== 'dm') return; // Only DM broadcasts canonical game state
+            const payload = {
+                type: 'STATE_SYNC',
+                tokens: state.tokens,
+                fogRects: state.fogRects
+            };
+            state.connections.forEach(conn => conn.send(payload));
+        }
+
+        function handlePeerData(data) {
+            if (data.type === 'STATE_SYNC') {
+                state.tokens = data.tokens;
+                state.fogRects = data.fogRects;
+                updateInitiativeUI();
+            } else if (data.type === 'DICE_ROLL') {
+                renderRollLogEntry(data.entry);
+            } else if (data.type === 'YT_AUDIO_SYNC') {
+                if (ytPlayer && ytPlayer.loadVideoById) {
+                    ytPlayer.loadVideoById(data.videoId, data.time);
+                }
+            }
+        }
+
+        function renderSheetUI() {
+            document.getElementById('sheet-name').innerText = state.sheet.name;
+            document.getElementById('sheet-class-race').innerText = state.sheet.raceClass;
+            document.getElementById('sheet-hp-curr').innerText = state.sheet.hpCurrent;
+            document.getElementById('sheet-hp-max').innerText = state.sheet.hpMax;
+            
+            const pct = Math.round((state.sheet.hpCurrent / state.sheet.hpMax) * 100);
+            document.getElementById('sheet-hp-percent').innerText = `${pct}%`;
+            document.getElementById('sheet-hp-bar').style.width = `${pct}%`;
+
+            const atksContainer = document.getElementById('sheet-attacks-list');
+            atksContainer.innerHTML = '';
+            state.sheet.attacks.forEach(atk => {
+                const card = document.createElement('div');
+                card.className = "bg-brand-panel border border-brand-border p-2 rounded-lg text-xs space-y-1";
+                card.innerHTML = `
+                    <div class="flex justify-between font-bold text-slate-200">
+                        <span>${atk.name}</span>
+                        <span class="text-brand-gold">+${atk.hit}</span>
+                    </div>
+                    <button onclick="executeAttackMacro('${atk.name}', ${atk.hit}, '${atk.dmgDice}')" class="w-full py-1 bg-brand-gold hover:bg-brand-goldHover text-brand-dark rounded font-bold text-[11px]">
+                        Rolar Ataque & Dano
+                    </button>
+                `;
+                atksContainer.appendChild(card);
+            });
+        }
+
+        function adjustPlayerHP(amt) {
+            state.sheet.hpCurrent = Math.max(0, Math.min(state.sheet.hpMax, state.sheet.hpCurrent + amt));
+            renderSheetUI();
+        }
+
+        function setRollAdvantage(mode) {
+            state.rollAdvantage = mode;
+            ['norm', 'vant', 'desv'].forEach(m => {
+                document.getElementById(`adv-${m}`).className = mode === (m === 'norm' ? 'normal' : m === 'vant' ? 'adv' : 'disadv') ?
+                    'px-2 py-0.5 bg-brand-gold text-brand-dark font-bold rounded' :
+                    'px-2 py-0.5 bg-brand-panelLight text-slate-400 font-bold rounded border border-brand-border';
+            });
+        }
+
+        function rollDice(count, sides, mod = 0, label = "Rolagem") {
+            playDiceSound();
+            let d1 = Math.floor(Math.random() * sides) + 1;
+            let d2 = Math.floor(Math.random() * sides) + 1;
+            let chosen = d1;
+            let note = "";
+
+            if (sides === 20) {
+                if (state.rollAdvantage === 'adv') { chosen = Math.max(d1, d2); note = ` (Vantagem: [${d1}, ${d2}])`; }
+                else if (state.rollAdvantage === 'disadv') { chosen = Math.min(d1, d2); note = ` (Desvantagem: [${d1}, ${d2}])`; }
+            }
+
+            const total = chosen + mod;
+            const isSecret = document.getElementById('check-secret-roll')?.checked || false;
+
+            const entry = {
+                sender: state.role === 'dm' ? 'Mestre' : state.sheet.name,
+                label,
+                total,
+                raw: chosen,
+                mod,
+                sides,
+                note,
+                isSecret,
+                time: new Date().toLocaleTimeString()
+            };
+
+            renderRollLogEntry(entry);
+
+            // Broadcast roll to peers
+            state.connections.forEach(conn => conn.send({ type: 'DICE_ROLL', entry }));
+        }
+
+        function executeAttackMacro(name, hitBonus, dmgFormula) {
+            rollDice(1, 20, hitBonus, `Ataque: ${name}`);
+        }
+
+        function rollStat(statName, mod) {
+            rollDice(1, 20, mod, `Teste de ${statName}`);
+        }
+
+        function renderRollLogEntry(entry) {
+            if (entry.isSecret && state.role !== 'dm') return; // Secret DM roll filter
+
+            const feed = document.getElementById('dice-log-feed');
+            const card = document.createElement('div');
+            const isNat20 = entry.sides === 20 && entry.raw === 20;
+            const isNat1 = entry.sides === 20 && entry.raw === 1;
+
+            let borderStyle = 'border-brand-border';
+            if (isNat20) borderStyle = 'border-emerald-500 bg-emerald-950/20 crit-glow';
+            if (isNat1) borderStyle = 'border-red-500 bg-red-950/20 fail-glow';
+
+            card.className = `bg-brand-panelLight border ${borderStyle} rounded-lg p-2 text-xs space-y-1`;
+            card.innerHTML = `
+                <div class="flex justify-between items-center text-[10px] text-slate-400">
+                    <span class="font-bold text-brand-gold">${entry.sender} ${entry.isSecret ? '(SECRETO)' : ''}</span>
+                    <span>${entry.time}</span>
+                </div>
+                <div class="font-semibold text-slate-300">${entry.label}</div>
+                <div class="flex justify-between items-baseline">
+                    <span class="text-[11px] text-slate-400">d${entry.sides} (${entry.raw}) + ${entry.mod}${entry.note}</span>
+                    <span class="text-base font-black ${isNat20 ? 'text-emerald-400' : isNat1 ? 'text-red-400' : 'text-slate-100'}">${entry.total}</span>
+                </div>
+            `;
+            feed.prepend(card);
+        }
+
+        function clearRollLog() {
+            document.getElementById('dice-log-feed').innerHTML = '';
+        }
+
+        function playDiceSound() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = audioCtx.currentTime;
+                for (let i = 0; i < 3; i++) {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(160 + Math.random() * 200, now + i * 0.05);
+                    gain.gain.setValueAtTime(0.08, now + i * 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.05 + 0.07);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(now + i * 0.05); osc.stop(now + i * 0.05 + 0.07);
+                }
+            } catch(e) {}
+        }
+
+        function onYouTubeIframeAPIReady() {
+            ytPlayer = new YT.Player('yt-player-container', {
+                height: '0',
+                width: '0',
+                videoId: 'dQw4w9WgXcQ',
+                events: { 'onReady': () => { ytPlayer.setVolume(50); } }
+            });
+        }
+
+        function syncYouTubeTrack() {
+            const val = document.getElementById('yt-url-input').value.trim();
+            let videoId = val;
+            if (val.includes('v=')) {
+                videoId = val.split('v=')[1].split('&')[0];
+            }
+
+            if (ytPlayer && ytPlayer.loadVideoById) {
+                ytPlayer.loadVideoById(videoId, 0);
+            }
+
+            // Broadcast audio sync to all connected peers
+            state.connections.forEach(conn => conn.send({
+                type: 'YT_AUDIO_SYNC',
+                videoId,
+                time: 0
+            }));
+        }
+
+        function toggleAudioPlayState() {
+            if (!ytPlayer) return;
+            const stateNum = ytPlayer.getPlayerState();
+            if (stateNum === 1) { ytPlayer.pauseVideo(); }
+            else { ytPlayer.playVideo(); }
+        }
+
+        function adjustLocalVolume(val) {
+            document.getElementById('local-vol-text').innerText = `${val}%`;
+            if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(val);
+        }
+
+        function switchLeftTab(tab) {
+            document.getElementById('tab-content-sheet').classList.toggle('hidden', tab !== 'sheet');
+            document.getElementById('tab-content-tokens').classList.toggle('hidden', tab !== 'tokens');
+            document.getElementById('tab-content-dm-notes').classList.toggle('hidden', tab !== 'dm-notes');
+
+            ['sheet', 'tokens', 'dm-notes'].forEach(t => {
+                document.getElementById(`tab-btn-${t}`).className = tab === t ?
+                    'flex-1 py-2.5 text-xs font-bold text-brand-gold border-b-2 border-brand-gold flex items-center justify-center gap-1.5' :
+                    'flex-1 py-2.5 text-xs font-bold text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center justify-center gap-1.5';
+            });
+        }
+
+        function switchRightTab(tab) {
+            document.getElementById('tab-content-chat').classList.toggle('hidden', tab !== 'chat');
+            document.getElementById('tab-content-audio').classList.toggle('hidden', tab !== 'audio');
+
+            ['chat', 'audio'].forEach(t => {
+                document.getElementById(`tab-btn-${t}`).className = tab === t ?
+                    'flex-1 py-2.5 text-xs font-bold text-brand-gold border-b-2 border-brand-gold flex items-center justify-center gap-1.5' :
+                    'flex-1 py-2.5 text-xs font-bold text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center justify-center gap-1.5';
+            });
+        }
+
+        function setCanvasTool(tool) {
+            state.activeTool = tool;
+            ['select', 'measure', 'fog-draw', 'fog-erase'].forEach(t => {
+                const btn = document.getElementById(`tool-${t}`);
+                if (btn) btn.className = tool === t ? 'px-2.5 py-1 rounded font-semibold bg-brand-gold text-brand-dark' : 'px-2.5 py-1 rounded font-semibold text-slate-300 hover:bg-brand-border';
+            });
+            canvas.className = `block w-full h-full ${tool}`;
+        }
+
+        function toggleGrid() { state.showGrid = !state.showGrid; }
+        function openRoomModal() { document.getElementById('modal-room').classList.remove('hidden'); }
+        function closeRoomModal() { document.getElementById('modal-room').classList.add('hidden'); }
+        function openMapModal() { document.getElementById('modal-map').classList.remove('hidden'); }
+        function closeMapModal() { document.getElementById('modal-map').classList.add('hidden'); }
+
+        function applyNewMap() {
+            const url = document.getElementById('input-map-url').value;
+            if (url) {
+                const img = new Image();
+                img.src = url;
+                img.onload = () => { state.bgImage = img; broadcastState(); };
+            }
+            closeMapModal();
+        }
+
+        function updateInitiativeUI() {
+            const container = document.getElementById('initiative-list');
+            container.innerHTML = '';
+            state.tokens.forEach(tok => {
+                const card = document.createElement('div');
+                card.className = "bg-brand-panelLight border border-brand-border p-2 rounded-lg text-xs flex justify-between items-center";
+                card.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <div class="w-2.5 h-2.5 rounded-full" style="background-color:${tok.color}"></div>
+                        <span class="font-bold text-slate-200">${tok.name}</span>
+                    </div>
+                    <span class="text-brand-gold font-bold">Inic: ${tok.initiative}</span>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function rollInitiativeAll() {
+            state.tokens.forEach(t => t.initiative = Math.floor(Math.random() * 20) + 1);
+            updateInitiativeUI();
+            broadcastState();
+        }
+
+        function saveDMNotes() {
+            localStorage.setItem('arcane_dm_secret_notes', document.getElementById('dm-secret-notes').value);
+        }
+
+        if (localStorage.getItem('arcane_dm_secret_notes')) {
+            document.getElementById('dm-secret-notes').value = localStorage.getItem('arcane_dm_secret_notes');
+        }
+    </script>
+</body>
+</html>
