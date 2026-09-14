@@ -3,297 +3,294 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arcane VTT Nexus & Player Suite</title>
+  <title>Arcane VTT & RPG Manager</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
   <style>
     :root {
-      --bg-dark: #0d0f12;
-      --bg-panel: #161920;
-      --bg-card: #1f2430;
+      --bg-darkest: #0a0b0e;
+      --bg-dark: #12151c;
+      --bg-panel: #1a1e29;
+      --bg-card: #242a38;
       --accent-gold: #d4af37;
+      --accent-gold-hover: #f1c40f;
       --accent-red: #e74c3c;
       --accent-blue: #3498db;
       --accent-green: #2ecc71;
-      --text-main: #f0f3f8;
+      --text-main: #f0f4f8;
       --text-muted: #8c96a6;
-      --border: #2a3142;
+      --border: #2d3548;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
-    body { background-color: var(--bg-dark); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    body { background-color: var(--bg-darkest); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
 
     /* AUTH OVERLAY */
     #auth-screen {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: radial-gradient(circle at center, #1f2430 0%, #0d0f12 100%);
+      position: fixed; inset: 0; background: radial-gradient(circle at center, #1a1e29 0%, #0a0b0e 100%);
       z-index: 9999; display: flex; align-items: center; justify-content: center;
     }
     .auth-card {
-      background: var(--bg-panel); border: 1px solid var(--accent-gold);
-      padding: 30px; border-radius: 12px; width: 380px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center;
+      background: var(--bg-panel); border: 1px solid var(--accent-gold); padding: 30px;
+      border-radius: 12px; width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); text-align: center;
     }
-    .auth-card h2 { color: var(--accent-gold); margin-bottom: 20px; font-family: Georgia, serif; }
+    .auth-card h1 { color: var(--accent-gold); font-family: Georgia, serif; font-size: 1.8em; margin-bottom: 20px; }
     .form-group { margin-bottom: 15px; text-align: left; }
-    .form-group label { display: block; font-size: 0.8em; color: var(--text-muted); margin-bottom: 5px; }
+    .form-group label { display: block; font-size: 0.8em; color: var(--text-muted); margin-bottom: 5px; font-weight: bold; }
     .form-group input, .form-group select {
       width: 100%; padding: 10px; background: var(--bg-card); border: 1px solid var(--border);
-      color: #fff; border-radius: 6px; font-size: 0.9em;
+      color: #fff; border-radius: 6px; font-size: 0.9em; outline: none;
     }
-    .auth-btn {
+    .form-group input:focus { border-color: var(--accent-gold); }
+    .btn-auth {
       width: 100%; padding: 12px; background: var(--accent-gold); border: none;
-      color: #000; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.2s; margin-top: 10px;
+      color: #000; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.2s; margin-top: 10px; font-size: 1em;
     }
-    .auth-btn:hover { background: #f1c40f; }
+    .btn-auth:hover { background: var(--accent-gold-hover); }
 
-    /* MAIN APP LAYOUT */
+    /* MAIN APP */
     #app-container { display: none; height: 100vh; flex-direction: column; }
-    
     header {
       background: var(--bg-panel); border-bottom: 1px solid var(--border);
-      padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; height: 50px;
+      padding: 0 16px; display: flex; justify-content: space-between; align-items: center; height: 50px; flex-shrink: 0;
     }
-    .brand { font-weight: bold; color: var(--accent-gold); font-family: Georgia, serif; font-size: 1.1em; }
-    
-    .header-actions { display: flex; gap: 12px; align-items: center; }
+    .brand { font-weight: bold; color: var(--accent-gold); font-family: Georgia, serif; font-size: 1.1em; display: flex; align-items: center; gap: 8px; }
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+
     .btn {
       background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main);
-      padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85em; transition: 0.2s;
+      padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85em; transition: 0.2s; font-weight: 500;
     }
-    .btn:hover { background: var(--border); }
+    .btn:hover { background: var(--border); color: #fff; }
     .btn-gold { background: var(--accent-gold); color: #000; border: none; font-weight: bold; }
-    .btn-gold:hover { background: #f1c40f; }
+    .btn-gold:hover { background: var(--accent-gold-hover); }
 
+    /* SCENE TABS BAR */
+    #scenes-bar {
+      background: var(--bg-dark); border-bottom: 1px solid var(--border); padding: 4px 10px;
+      display: flex; gap: 6px; align-items: center; overflow-x: auto; flex-shrink: 0; height: 40px;
+    }
+    .scene-tab {
+      background: var(--bg-panel); border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px;
+      font-size: 0.8em; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap;
+    }
+    .scene-tab.active { background: var(--bg-card); border-color: var(--accent-gold); color: var(--accent-gold); font-weight: bold; }
+    .scene-tab .visibility-btn { cursor: pointer; opacity: 0.6; }
+    .scene-tab .visibility-btn.visible { opacity: 1; color: var(--accent-green); }
+
+    /* MAIN CONTENT VIEW */
     main { display: flex; flex: 1; overflow: hidden; position: relative; }
+    .tab-view { display: none; width: 100%; height: 100%; flex: 1; position: relative; }
+    .tab-view.active { display: flex; }
 
-    /* SIDEBAR NAV & TABS */
-    .view-panel { display: flex; width: 100%; height: 100%; }
-    .tab-content { display: none; width: 100%; height: 100%; flex: 1; overflow-y: auto; padding: 15px; }
-    .tab-content.active { display: flex; }
+    /* VTT CANVAS AREA */
+    #vtt-viewport { flex: 1; position: relative; background: #050608; overflow: hidden; }
+    #vtt-canvas { position: absolute; inset: 0; cursor: crosshair; }
 
-    /* VTT GRID CANVAS */
-    #vtt-container { flex: 1; position: relative; background: #050608; overflow: hidden; }
-    #vtt-canvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
-
-    /* CHARACTER SHEET (EXPANDED D&D 5E STYLE) */
-    .sheet-grid { display: grid; grid-template-columns: 280px 1fr; gap: 15px; width: 100%; max-width: 1200px; margin: 0 auto; }
-    .sheet-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 15px; }
-    
-    .stats-column { display: flex; flex-direction: column; gap: 10px; }
-    .attr-box {
-      background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
-      padding: 8px; text-align: center; position: relative;
+    /* VTT TOOLBAR LEFT */
+    .vtt-tools {
+      position: absolute; top: 15px; left: 15px; background: var(--bg-panel); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 8px; z-index: 10; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     }
-    .attr-name { font-size: 0.75em; color: var(--text-muted); text-transform: uppercase; }
-    .attr-val { font-size: 1.4em; font-weight: bold; color: var(--accent-gold); margin: 2px 0; }
-    .attr-mod {
-      background: var(--bg-panel); border: 1px solid var(--accent-gold);
-      border-radius: 50%; width: 28px; height: 28px; line-height: 26px;
-      font-size: 0.85em; margin: 0 auto; font-weight: bold;
+    .tool-btn {
+      width: 36px; height: 36px; background: var(--bg-card); border: 1px solid var(--border); color: #fff;
+      border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1em;
     }
+    .tool-btn.active, .tool-btn:hover { background: var(--accent-gold); color: #000; border-color: var(--accent-gold); }
 
-    .hp-tracker { display: flex; gap: 10px; align-items: center; background: var(--bg-card); padding: 10px; border-radius: 6px; }
-    .hp-box { flex: 1; text-align: center; }
-    .hp-box input { width: 50px; text-align: center; background: var(--bg-panel); border: 1px solid var(--border); color: #fff; padding: 4px; border-radius: 4px; }
+    /* PALETTE DRAWER (OBJECTS / TOKENS) */
+    #objects-palette {
+      position: absolute; top: 15px; left: 70px; background: var(--bg-panel); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px; width: 220px; z-index: 10; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+    #objects-palette h4 { font-size: 0.85em; color: var(--accent-gold); margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+    .palette-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .palette-item {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 8px;
+      text-align: center; cursor: pointer; font-size: 0.75em; transition: 0.2s;
+    }
+    .palette-item:hover { border-color: var(--accent-gold); transform: translateY(-2px); }
+    .palette-item span { display: block; font-size: 1.4em; margin-bottom: 2px; }
 
-    .sheet-tabs { display: flex; gap: 10px; border-bottom: 1px solid var(--border); margin-bottom: 15px; }
-    .sheet-tab-btn { padding: 8px 16px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-weight: bold; }
-    .sheet-tab-btn.active { color: var(--accent-gold); border-bottom: 2px solid var(--accent-gold); }
+    /* CHARACTER SHEET */
+    .sheet-container { width: 100%; max-width: 1100px; margin: 20px auto; padding: 0 20px; overflow-y: auto; }
+    .sheet-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
+    .sheet-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
 
-    /* DICE LOG & CHAT SIDEBAR */
-    #sidebar-right { width: 320px; background: var(--bg-panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
-    .chat-messages { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-    .chat-msg { background: var(--bg-card); padding: 8px; border-radius: 6px; font-size: 0.85em; border-left: 3px solid var(--accent-blue); }
-    .chat-msg.roll { border-left-color: var(--accent-gold); }
-    .chat-msg.secret { border-left-color: var(--accent-red); background: #2a1518; }
-    .chat-author { font-weight: bold; color: var(--accent-gold); font-size: 0.9em; margin-bottom: 2px; }
+    .hp-bar-container { background: var(--bg-card); border-radius: 6px; padding: 10px; margin-top: 10px; text-align: center; }
+    .hp-inputs { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px 0; }
+    .hp-inputs input { width: 60px; text-align: center; background: var(--bg-panel); border: 1px solid var(--border); color: #fff; padding: 6px; border-radius: 4px; font-weight: bold; }
 
-    /* YOUTUBE AUDIO PLAYER STYLING */
-    .audio-bar { background: var(--bg-card); border-top: 1px solid var(--border); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-    .audio-controls { display: flex; gap: 8px; align-items: center; }
-    .audio-controls input[type="text"] { flex: 1; background: var(--bg-panel); border: 1px solid var(--border); color: #fff; padding: 5px; border-radius: 4px; font-size: 0.8em; }
+    .attr-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
+    .attr-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 8px;
+      text-align: center; cursor: pointer; transition: 0.2s;
+    }
+    .attr-card:hover { border-color: var(--accent-gold); }
+    .attr-title { font-size: 0.7em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; }
+    .attr-value { font-size: 1.5em; font-weight: bold; color: var(--accent-gold); }
+    .attr-mod { font-size: 0.8em; color: #fff; background: var(--bg-panel); border-radius: 10px; padding: 2px 6px; display: inline-block; margin-top: 2px; }
+
+    /* RIGHT SIDEBAR (CHAT & AUDIO) */
+    #sidebar-right { width: 340px; background: var(--bg-panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+    .chat-box { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .chat-msg { background: var(--bg-card); padding: 8px 12px; border-radius: 6px; font-size: 0.85em; border-left: 3px solid var(--accent-blue); }
+    .chat-msg.roll { border-left-color: var(--accent-gold); background: #262115; }
+    .chat-msg.secret { border-left-color: var(--accent-red); background: #281618; }
+    .chat-msg .author { font-weight: bold; color: var(--accent-gold); margin-bottom: 2px; }
+
+    .dice-bar { padding: 10px; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: var(--bg-dark); }
     
-    /* UTILITY CLASSES */
-    .flex-row { display: flex; gap: 10px; align-items: center; }
+    .audio-player { padding: 12px; border-top: 1px solid var(--border); background: var(--bg-card); display: flex; flex-direction: column; gap: 8px; }
+    .audio-player input[type="text"] { background: var(--bg-panel); border: 1px solid var(--border); color: #fff; padding: 6px; border-radius: 4px; font-size: 0.8em; }
+
+    .flex-row { display: flex; gap: 8px; align-items: center; }
     .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
-  <!-- TELA DE LOGIN / REGISTRO -->
+  <!-- AUTH / LOGIN -->
   <div id="auth-screen">
     <div class="auth-card">
-      <h2>Arcane VTT Nexus</h2>
+      <h1>Arcane VTT</h1>
       <div class="form-group">
-        <label>Nome do Jogador / Mestre</label>
-        <input type="text" id="auth-username" placeholder="Ex: Lucas / Mestre">
+        <label>Seu Nome / Apelido</label>
+        <input type="text" id="auth-name" placeholder="Ex: Lucas">
       </div>
       <div class="form-group">
-        <label>Tipo de Acesso</label>
+        <label>Papel na Mesa</label>
         <select id="auth-role">
-          <option value="player">Jogador (Ficha + Token)</option>
-          <option value="dm">Mestre (Controle Total + Névoa)</option>
+          <option value="player">Jogador</option>
+          <option value="dm">Mestre (DM)</option>
         </select>
       </div>
-      <div class="form-group">
-        <label>Nome do Personagem (se Jogador)</label>
-        <input type="text" id="auth-charname" placeholder="Ex: Valeros, o Guerreiro">
+      <div class="form-group" id="char-name-group">
+        <label>Nome do Personagem</label>
+        <input type="text" id="auth-char" placeholder="Ex: Eldrin, o Mago">
       </div>
-      <button class="auth-btn" onclick="appAuth()">Entrar no Reino</button>
+      <button class="btn-auth" onclick="login()">Entrar na Partida</button>
     </div>
   </div>
 
-  <!-- APLICAÇÃO PRINCIPAL -->
+  <!-- MAIN APP -->
   <div id="app-container">
     <header>
-      <div class="brand">⚔️ Arcane Nexus VTT</div>
+      <div class="brand">⚔️ Arcane VTT Nexus</div>
       
       <div class="header-actions">
-        <!-- Controles do Mestre -->
-        <div id="dm-controls" class="flex-row hidden">
+        <div id="dm-header-actions" class="flex-row hidden">
           <button class="btn btn-gold" onclick="createRoom()">🔑 Criar Sala</button>
           <button class="btn" onclick="copyRoomCode()">📋 Copiar Código</button>
-          <span id="room-code-display" style="font-size: 0.85em; color: var(--accent-gold);"></span>
+          <span id="room-code-tag" style="font-size:0.85em; color:var(--accent-gold); font-weight:bold;"></span>
         </div>
 
-        <!-- Controles do Jogador -->
-        <div id="player-controls" class="flex-row hidden">
-          <input type="text" id="join-room-input" placeholder="Código da Sala" style="padding: 4px; background: var(--bg-card); border: 1px solid var(--border); color: #fff; border-radius: 4px; width: 120px;">
+        <div id="player-header-actions" class="flex-row hidden">
+          <input type="text" id="join-code-input" placeholder="Código da Sala" style="width:110px; padding:4px; background:var(--bg-card); border:1px solid var(--border); color:#fff; border-radius:4px;">
           <button class="btn btn-gold" onclick="joinRoom()">Conectar</button>
         </div>
 
-        <button class="btn" onclick="switchTab('vtt')">🗺️ Mesa Visual</button>
-        <button class="btn" onclick="switchTab('sheet')">📜 Minha Ficha</button>
-        <span id="user-badge" style="font-size:0.8em; color: var(--text-muted); background: var(--bg-card); padding: 4px 8px; border-radius: 12px;"></span>
+        <button class="btn" onclick="switchMainTab('vtt')">🗺️ Tabuleiro</button>
+        <button class="btn" onclick="switchMainTab('sheet')">📜 Ficha</button>
+        <span id="user-display-tag" style="font-size:0.8em; background:var(--bg-card); padding:4px 8px; border-radius:12px; border:1px solid var(--border);"></span>
       </div>
     </header>
 
+    <!-- BARRA DE ABAS DE CENÁRIOS (MULTI-SCENES) -->
+    <div id="scenes-bar">
+      <span style="font-size:0.75em; color:var(--text-muted); font-weight:bold; margin-right:4px;">CENÁRIOS:</span>
+      <div id="scenes-tabs-list" class="flex-row"></div>
+      <button id="add-scene-btn" class="btn hidden" style="padding:2px 8px; font-size:0.8em;" onclick="addNewScene()">+ Novo Cenário</button>
+    </div>
+
     <main>
-      <!-- TAB 1: VTT / MESA VISUAL -->
-      <div id="tab-vtt" class="tab-content active" style="padding:0; position:relative;">
-        <div id="vtt-container">
+      <!-- VIEW 1: TABULEIRO VTT -->
+      <div id="view-vtt" class="tab-view active">
+        <div id="vtt-viewport">
+          <!-- PAINEL DE FERRAMENTAS ESQUERDO -->
+          <div class="vtt-tools">
+            <button class="tool-btn active" id="tool-select" title="Mover Tokens" onclick="setTool('select')">✋</button>
+            <button class="tool-btn hidden" id="tool-objects" title="Adicionar Objetos/NPCs" onclick="togglePalette()">📦</button>
+            <button class="tool-btn hidden" id="tool-fog" title="Névoa de Guerra" onclick="setTool('fog')">🌫️</button>
+            <button class="tool-btn hidden" id="tool-bg" title="Mudar Imagem de Fundo" onclick="changeBackground()">🖼️</button>
+          </div>
+
+          <!-- PALETA DE OBJETOS DO MESTRE -->
+          <div id="objects-palette">
+            <h4>Adicionar na Mesa</h4>
+            <div class="palette-grid">
+              <div class="palette-item" onclick="spawnObject('monster', '👹 Inimigo')"><span>👹</span>Inimigo</div>
+              <div class="palette-item" onclick="spawnObject('npc', '🧙‍♂️ NPC')"><span>🧙‍♂️</span>NPC</div>
+              <div class="palette-item" onclick="spawnObject('chest', '📦 Baú')"><span>📦</span>Baú</div>
+              <div class="palette-item" onclick="spawnObject('door', '🚪 Porta')"><span>🚪</span>Porta</div>
+              <div class="palette-item" onclick="spawnObject('trap', '⚠️ Armadilha')"><span>⚠️</span>Armadilha</div>
+              <div class="palette-item" onclick="spawnObject('fire', '🔥 Fogueira')"><span>🔥</span>Fogueira</div>
+            </div>
+          </div>
+
           <canvas id="vtt-canvas"></canvas>
         </div>
       </div>
 
-      <!-- TAB 2: FICHA DE PERSONAGEM INTERATIVA (PDF EXPANDIDO) -->
-      <div id="tab-sheet" class="tab-content">
-        <div class="sheet-grid">
-          <!-- Coluna da Esquerda: Atributos & Vida -->
-          <div class="stats-column">
+      <!-- VIEW 2: FICHA DO PERSONAGEM -->
+      <div id="view-sheet" class="tab-view">
+        <div class="sheet-container">
+          <div class="sheet-grid">
             <div class="sheet-card">
-              <h3 style="color:var(--accent-gold); margin-bottom:10px;" id="sheet-char-title">Personagem</h3>
-              
-              <div class="hp-tracker">
-                <div class="hp-box">
-                  <label style="font-size: 0.7em; color: var(--text-muted);">HP Atual</label>
-                  <input type="number" id="hp-current" value="28" onchange="saveSheetData()">
+              <h2 id="sheet-char-name" style="color:var(--accent-gold);">Personagem</h2>
+              <div class="hp-bar-container">
+                <span style="font-size:0.75em; color:var(--text-muted); font-weight:bold;">PONTOS DE VIDA (HP)</span>
+                <div class="hp-inputs">
+                  <input type="number" id="hp-curr" value="25" onchange="updateHP()">
+                  <span>/</span>
+                  <input type="number" id="hp-max" value="30" onchange="updateHP()">
                 </div>
-                <span>/</span>
-                <div class="hp-box">
-                  <label style="font-size: 0.7em; color: var(--text-muted);">HP Max</label>
-                  <input type="number" id="hp-max" value="35" onchange="saveSheetData()">
+                <div class="flex-row" style="justify-content:center;">
+                  <button class="btn" style="color:var(--accent-red)" onclick="modHP(-5)">-5</button>
+                  <button class="btn" style="color:var(--accent-red)" onclick="modHP(-1)">-1</button>
+                  <button class="btn" style="color:var(--accent-green)" onclick="modHP(1)">+1</button>
+                  <button class="btn" style="color:var(--accent-green)" onclick="modHP(5)">+5</button>
                 </div>
               </div>
 
-              <div class="flex-row" style="margin-top:10px; justify-content: space-between;">
-                <button class="btn" style="color:var(--accent-red)" onclick="modHP(-5)">-5</button>
-                <button class="btn" style="color:var(--accent-red)" onclick="modHP(-1)">-1</button>
-                <button class="btn" style="color:var(--accent-green)" onclick="modHP(1)">+1</button>
-                <button class="btn" style="color:var(--accent-green)" onclick="modHP(5)">+5</button>
+              <!-- Atributos -->
+              <div class="attr-grid">
+                <div class="attr-card" onclick="rollCheck('Força', 16)"><div class="attr-title">FOR</div><div class="attr-value">16</div><div class="attr-mod">+3</div></div>
+                <div class="attr-card" onclick="rollCheck('Destreza', 14)"><div class="attr-title">DES</div><div class="attr-value">14</div><div class="attr-mod">+2</div></div>
+                <div class="attr-card" onclick="rollCheck('Constituição', 15)"><div class="attr-title">CON</div><div class="attr-value">15</div><div class="attr-mod">+2</div></div>
+                <div class="attr-card" onclick="rollCheck('Inteligência', 10)"><div class="attr-title">INT</div><div class="attr-value">10</div><div class="attr-mod">+0</div></div>
+                <div class="attr-card" onclick="rollCheck('Sabedoria', 12)"><div class="attr-title">SAB</div><div class="attr-value">12</div><div class="attr-mod">+1</div></div>
+                <div class="attr-card" onclick="rollCheck('Carisma', 8)"><div class="attr-title">CAR</div><div class="attr-value">8</div><div class="attr-mod">-1</div></div>
               </div>
             </div>
 
-            <!-- 6 Atributos D&D -->
-            <div class="sheet-card" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-              <div class="attr-box" onclick="rollAttr('Força', 16)">
-                <div class="attr-name">Força</div>
-                <div class="attr-val" id="attr-str">16</div>
-                <div class="attr-mod">+3</div>
-              </div>
-              <div class="attr-box" onclick="rollAttr('Destreza', 14)">
-                <div class="attr-name">Destreza</div>
-                <div class="attr-val" id="attr-dex">14</div>
-                <div class="attr-mod">+2</div>
-              </div>
-              <div class="attr-box" onclick="rollAttr('Constituição', 15)">
-                <div class="attr-name">Const.</div>
-                <div class="attr-val" id="attr-con">15</div>
-                <div class="attr-mod">+2</div>
-              </div>
-              <div class="attr-box" onclick="rollAttr('Inteligência', 10)">
-                <div class="attr-name">Intel.</div>
-                <div class="attr-val" id="attr-int">10</div>
-                <div class="attr-mod">+0</div>
-              </div>
-              <div class="attr-box" onclick="rollAttr('Sabedoria', 12)">
-                <div class="attr-name">Sabedoria</div>
-                <div class="attr-val" id="attr-wis">12</div>
-                <div class="attr-mod">+1</div>
-              </div>
-              <div class="attr-box" onclick="rollAttr('Carisma', 8)">
-                <div class="attr-name">Carisma</div>
-                <div class="attr-val" id="attr-cha">8</div>
-                <div class="attr-mod">-1</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Coluna da Direita: Ataques, Magias e Background -->
-          <div class="sheet-card">
-            <div class="sheet-tabs">
-              <button class="sheet-tab-btn active" onclick="switchSheetSubTab('attacks')">⚔️ Ataques & Magias</button>
-              <button class="sheet-tab-btn" onclick="switchSheetSubTab('bio')">📜 Background & História</button>
-            </div>
-
-            <!-- Aba Ataques -->
-            <div id="subtab-attacks">
-              <div style="display:flex; flex-direction:column; gap:10px;">
+            <div class="sheet-card">
+              <h3 style="color:var(--accent-gold); margin-bottom:12px;">Ataques & Ações</h3>
+              <div style="display:flex; flex-direction:column; gap:8px;">
                 <div style="background:var(--bg-card); padding:10px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
                   <div>
-                    <strong>Espada Longa +1</strong>
-                    <div style="font-size:0.8em; color:var(--text-muted);">1d8 + 4 Concussão | Corpo a Corpo</div>
+                    <strong>Espada Longa</strong>
+                    <div style="font-size:0.75em; color:var(--text-muted)">1d8 + 3 Perfurante</div>
                   </div>
-                  <button class="btn btn-gold" onclick="rollAttack('Espada Longa', 5, '1d8+4')">Atacar (d20+5)</button>
+                  <button class="btn btn-gold" onclick="rollAttack('Espada Longa', 5, '1d8+3')">Atacar (d20+5)</button>
                 </div>
-
-                <div style="background:var(--bg-card); padding:10px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
-                  <div>
-                    <strong>Arco Curto</strong>
-                    <div style="font-size:0.8em; color:var(--text-muted);">1d6 + 2 Perfurante | Distância (24m)</div>
-                  </div>
-                  <button class="btn btn-gold" onclick="rollAttack('Arco Curto', 4, '1d6+2')">Atacar (d20+4)</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Aba Bio/Background -->
-            <div id="subtab-bio" class="hidden">
-              <div class="form-group">
-                <label>História / Background do Personagem</label>
-                <textarea id="sheet-bio-text" rows="8" style="width:100%; background:var(--bg-card); border:1px solid var(--border); color:#fff; padding:8px; border-radius:6px;" onchange="saveSheetData()" placeholder="Escreva a história do seu personagem aqui..."></textarea>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- PAINEL LATERAL DIREITO: CHAT / ROLAGENS / AUDIO -->
+      <!-- PAINEL LATERAL DIREITO -->
       <div id="sidebar-right">
-        <!-- Feed de Rolagens -->
-        <div style="padding:10px; border-bottom:1px solid var(--border); font-weight:bold; font-size:0.85em; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
-          <span>LOG DE COMBATE</span>
-          <label style="font-size:0.75em;" id="secret-roll-container" class="hidden">
-            <input type="checkbox" id="secret-roll-check"> Rolagem Secreta
+        <div style="padding:10px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:0.8em; font-weight:bold; color:var(--text-muted)">LOG DE COMBATE</span>
+          <label style="font-size:0.7em;" id="dm-secret-option" class="hidden">
+            <input type="checkbox" id="secret-roll-flag"> Secreto
           </label>
         </div>
 
-        <div class="chat-messages" id="chat-messages">
-          <div class="chat-msg">Servidor de Registro Conectado. Bem-vindo ao Arcane Nexus.</div>
-        </div>
+        <div id="chat-messages" class="chat-box"></div>
 
-        <!-- Rolador Rápidos de Dados -->
-        <div style="padding:8px; border-top:1px solid var(--border); display:grid; grid-template-columns: repeat(4, 1fr); gap:4px;">
+        <div class="dice-bar">
           <button class="btn" onclick="quickRoll(4)">d4</button>
           <button class="btn" onclick="quickRoll(6)">d6</button>
           <button class="btn" onclick="quickRoll(8)">d8</button>
@@ -303,215 +300,203 @@
           <button class="btn" onclick="quickRoll(100)">d100</button>
         </div>
 
-        <!-- PLAYER DE ÁUDIO YOUTUBE -->
-        <div class="audio-bar">
-          <div style="font-size:0.75em; color:var(--text-muted); font-weight:bold;">🎵 MÚSICA AMBIENTE (YOUTUBE)</div>
-          <div class="audio-controls">
-            <input type="text" id="yt-url" placeholder="Link de vídeo/playlist YT">
-            <button class="btn btn-gold" onclick="playAudioStream()">▶</button>
-          </div>
+        <div class="audio-player">
+          <span style="font-size:0.7em; color:var(--text-muted); font-weight:bold;">🎵 TRILHA AMBIENTE (YOUTUBE)</span>
           <div class="flex-row">
-            <span style="font-size:0.7em; color:var(--text-muted)">Volume:</span>
-            <input type="range" id="yt-volume" min="0" max="100" value="50" onchange="setVolume(this.value)" style="flex:1">
+            <input type="text" id="yt-url-input" placeholder="Link do YouTube">
+            <button class="btn btn-gold" onclick="playMusic()">▶</button>
           </div>
         </div>
       </div>
     </main>
   </div>
 
-  <!-- CONTAINER ESCONDIDO DO YOUTUBE API -->
-  <div id="yt-player-hidden" style="display:none;"></div>
-
   <script>
-    // ESTADO DA APLICAÇÃO
-    let currentUser = { name: '', role: 'player', charName: '' };
-    let peer = null;
-    let connections = [];
-    let activeRoomCode = '';
+    // ESTADO GLOBAL DA APLICAÇÃO
+    let user = { name: '', role: 'player', charName: '' };
+    let peer = null, roomCode = '', connections = [];
+    let currentTool = 'select';
 
-    // AUTENTICAÇÃO E INICIALIZAÇÃO
-    function appAuth() {
-      const name = document.getElementById('auth-username').value.trim();
+    // ESTRUTURA DE CENÁRIOS MULTI-ABAS
+    let scenes = [
+      { id: 'sc_1', name: 'Masmorra Principal', bg: '', visibleToPlayers: true, tokens: [], fog: [] }
+    ];
+    let activeSceneId = 'sc_1';
+
+    let selectedToken = null, isDragging = false, dragOffset = { x: 0, y: 0 };
+
+    function login() {
+      const name = document.getElementById('auth-name').value.trim();
       const role = document.getElementById('auth-role').value;
-      const charName = document.getElementById('auth-charname').value.trim();
+      const charName = document.getElementById('auth-char').value.trim();
 
-      if (!name) return alert('Por favor, informe seu nome!');
+      if (!name) return alert('Insira seu nome!');
 
-      currentUser = { name, role, charName: charName || name };
-
+      user = { name, role, charName: charName || name };
       document.getElementById('auth-screen').classList.add('hidden');
       document.getElementById('app-container').style.display = 'flex';
-      document.getElementById('user-badge').innerText = `${currentUser.name} (${currentUser.role === 'dm' ? 'Mestre' : 'Jogador'})`;
-      document.getElementById('sheet-char-title').innerText = currentUser.charName;
+      document.getElementById('user-display-tag').innerText = `${user.name} (${user.role === 'dm' ? 'DM' : 'Player'})`;
+      document.getElementById('sheet-char-name').innerText = user.charName;
 
-      if (currentUser.role === 'dm') {
-        document.getElementById('dm-controls').classList.remove('hidden');
-        document.getElementById('secret-roll-container').classList.remove('hidden');
+      if (user.role === 'dm') {
+        document.getElementById('dm-header-actions').classList.remove('hidden');
+        document.getElementById('dm-secret-option').classList.remove('hidden');
+        document.getElementById('add-scene-btn').classList.remove('hidden');
+        document.getElementById('tool-objects').classList.remove('hidden');
+        document.getElementById('tool-fog').classList.remove('hidden');
+        document.getElementById('tool-bg').classList.remove('hidden');
       } else {
-        document.getElementById('player-controls').classList.remove('hidden');
+        document.getElementById('player-header-actions').classList.remove('hidden');
       }
 
-      loadSavedSheetData();
+      renderSceneTabs();
       initCanvas();
     }
 
-    // PEERJS / REDE MULTIPLAYER ONLINE
+    // CONEXÃO PEERJS / REDE
     function createRoom() {
-      const code = 'NEXUS-' + Math.floor(1000 + Math.random() * 9000);
-      activeRoomCode = code;
-      peer = new Peer(code);
-
-      peer.on('open', (id) => {
-        document.getElementById('room-code-display').innerText = id;
-        addLog(`Sala criada com sucesso! Código: ${id}`, 'msg');
+      roomCode = 'ARCANE-' + Math.floor(1000 + Math.random() * 9000);
+      peer = new Peer(roomCode);
+      peer.on('open', id => {
+        document.getElementById('room-code-tag').innerText = id;
+        addLog(`Sala criada! Código: <strong>${id}</strong>`, 'msg');
       });
-
-      peer.on('connection', (conn) => {
+      peer.on('connection', conn => {
         connections.push(conn);
-        conn.on('data', (data) => handleNetworkData(data));
-        addLog(`${conn.peer} entrou na partida.`, 'msg');
+        conn.on('data', data => handleNetData(data));
+        
+        // Quando player entra, cria o token dele na mesa ativa
+        conn.on('open', () => {
+          syncStateToPlayers();
+        });
       });
     }
 
     function joinRoom() {
-      const code = document.getElementById('join-room-input').value.trim();
-      if (!code) return alert('Insira o código da sala!');
+      const code = document.getElementById('join-code-input').value.trim();
+      if (!code) return alert('Insira o código!');
 
       peer = new Peer();
       peer.on('open', () => {
         const conn = peer.connect(code);
         connections.push(conn);
         conn.on('open', () => {
-          addLog(`Conectado à sala do Mestre!`, 'msg');
+          addLog(`Conectado à sala!`, 'msg');
+          // Envia aviso ao mestre para registrar token
+          conn.send({ type: 'player_join', charName: user.charName });
         });
-        conn.on('data', (data) => handleNetworkData(data));
+        conn.on('data', data => handleNetData(data));
       });
     }
 
     function copyRoomCode() {
-      if (!activeRoomCode) return alert('Crie uma sala primeiro!');
-      navigator.clipboard.writeText(activeRoomCode);
-      alert(`Código ${activeRoomCode} copiado para a área de transferência!`);
+      navigator.clipboard.writeText(roomCode);
+      alert(`Código ${roomCode} copiado!`);
     }
 
     function broadcast(data) {
-      connections.forEach(conn => conn.send(data));
+      connections.forEach(c => c.send(data));
     }
 
-    function handleNetworkData(data) {
-      if (data.type === 'log') {
+    function syncStateToPlayers() {
+      if (user.role !== 'dm') return;
+      broadcast({ type: 'sync_state', scenes, activeSceneId });
+    }
+
+    function handleNetData(data) {
+      if (data.type === 'sync_state') {
+        // Player recebe lista de cenários filtrados
+        scenes = data.scenes;
+        activeSceneId = data.activeSceneId;
+        renderSceneTabs();
+        drawCanvas();
+      } else if (data.type === 'player_join' && user.role === 'dm') {
+        // Mestre cria token para o jogador que entrou
+        const curScene = scenes.find(s => s.id === activeSceneId);
+        if (curScene && !curScene.tokens.some(t => t.label === data.charName)) {
+          curScene.tokens.push({ id: 'tok_' + Date.now(), label: data.charName, x: 100, y: 100, color: '#3498db', icon: '🤺', hp: 30, maxHp: 30 });
+          syncStateToPlayers();
+          drawCanvas();
+        }
+      } else if (data.type === 'log') {
         addLog(data.text, data.msgType, data.author);
-      } else if (data.type === 'audio') {
-        syncAudio(data.url);
       }
     }
 
-    // NAVEGAÇÃO DE ABAS
-    function switchTab(tab) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      document.getElementById(`tab-${tab}`).classList.add('active');
+    // GESTÃO DE SCENARIOS (ABAS)
+    function renderSceneTabs() {
+      const container = document.getElementById('scenes-tabs-list');
+      container.innerHTML = '';
+
+      scenes.forEach(sc => {
+        if (user.role !== 'dm' && !sc.visibleToPlayers) return; // Oculta aba se player não tiver permissão
+
+        const tab = document.createElement('div');
+        tab.className = `scene-tab ${sc.id === activeSceneId ? 'active' : ''}`;
+        
+        let visBtn = user.role === 'dm' ? `<span class="visibility-btn ${sc.visibleToPlayers ? 'visible' : ''}" onclick="toggleSceneVisibility(event, '${sc.id}')">👁️</span>` : '';
+        tab.innerHTML = `${visBtn} <span>${sc.name}</span>`;
+        tab.onclick = () => selectScene(sc.id);
+        container.appendChild(tab);
+      });
     }
 
-    function switchSheetSubTab(subtab) {
-      document.querySelectorAll('.sheet-tab-btn').forEach(btn => btn.classList.remove('active'));
-      document.getElementById('subtab-attacks').classList.add('hidden');
-      document.getElementById('subtab-bio').classList.add('hidden');
+    function selectScene(id) {
+      activeSceneId = id;
+      renderSceneTabs();
+      drawCanvas();
+      if (user.role === 'dm') syncStateToPlayers();
+    }
 
-      if (subtab === 'attacks') {
-        document.getElementById('subtab-attacks').classList.remove('hidden');
-      } else {
-        document.getElementById('subtab-bio').classList.remove('hidden');
+    function addNewScene() {
+      const name = prompt('Nome do novo cenário:', 'Nova Masmorra');
+      if (!name) return;
+      const newSc = { id: 'sc_' + Date.now(), name, bg: '', visibleToPlayers: false, tokens: [], fog: [] };
+      scenes.push(newSc);
+      selectScene(newSc.id);
+    }
+
+    function toggleSceneVisibility(e, id) {
+      e.stopPropagation();
+      const sc = scenes.find(s => s.id === id);
+      if (sc) {
+        sc.visibleToPlayers = !sc.visibleToPlayers;
+        renderSceneTabs();
+        syncStateToPlayers();
       }
     }
 
-    // LOG DE MENSAGENS E DADOS
-    function addLog(text, msgType = 'msg', author = '') {
-      const chat = document.getElementById('chat-messages');
-      const el = document.createElement('div');
-      el.className = `chat-msg ${msgType}`;
-      if (author) {
-        el.innerHTML = `<div class="chat-author">${author}</div>` + text;
-      } else {
-        el.innerHTML = text;
-      }
-      chat.appendChild(el);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    function rollD20(mod = 0) {
-      const roll = Math.floor(Math.random() * 20) + 1;
-      return { roll, total: roll + mod };
-    }
-
-    function quickRoll(sides) {
-      const roll = Math.floor(Math.random() * sides) + 1;
-      const isSecret = document.getElementById('secret-roll-check')?.checked;
-      
-      const logText = `Rolou 1d${sides} ➔ <strong>[${roll}]</strong>`;
-      
-      if (isSecret && currentUser.role === 'dm') {
-        addLog(logText + ' (Secreto)', 'secret', currentUser.name);
-      } else {
-        addLog(logText, 'roll', currentUser.name);
-        broadcast({ type: 'log', text: logText, msgType: 'roll', author: currentUser.name });
-      }
-    }
-
-    function rollAttr(name, score) {
-      const mod = Math.floor((score - 10) / 2);
-      const res = rollD20(mod);
-      const logText = `Teste de <strong>${name}</strong>: d20(${res.roll}) + ${mod} ➔ <strong>[${res.total}]</strong>`;
-      
-      addLog(logText, 'roll', currentUser.charName);
-      broadcast({ type: 'log', text: logText, msgType: 'roll', author: currentUser.charName });
-    }
-
-    function rollAttack(weaponName, attackMod, damageFormula) {
-      const atk = rollD20(attackMod);
-      const logText = `Ataque com <strong>${weaponName}</strong>: d20(${atk.roll}) + ${attackMod} ➔ <strong>[${atk.total}] para acertar</strong> | Dano: [${damageFormula}]`;
-      
-      addLog(logText, 'roll', currentUser.charName);
-      broadcast({ type: 'log', text: logText, msgType: 'roll', author: currentUser.charName });
-    }
-
-    // GESTÃO DE HP & PERSISTÊNCIA LOCAL
-    function modHP(amount) {
-      const hpEl = document.getElementById('hp-current');
-      hpEl.value = parseInt(hpEl.value || 0) + amount;
-      saveSheetData();
-    }
-
-    function saveSheetData() {
-      const data = {
-        hpCurrent: document.getElementById('hp-current').value,
-        hpMax: document.getElementById('hp-max').value,
-        bio: document.getElementById('sheet-bio-text').value
-      };
-      localStorage.setItem(`rpg_sheet_${currentUser.charName}`, JSON.stringify(data));
-    }
-
-    function loadSavedSheetData() {
-      const saved = localStorage.getItem(`rpg_sheet_${currentUser.charName}`);
-      if (saved) {
-        const data = JSON.parse(saved);
-        document.getElementById('hp-current').value = data.hpCurrent || 28;
-        document.getElementById('hp-max').value = data.hpMax || 35;
-        document.getElementById('sheet-bio-text').value = data.bio || '';
-      }
-    }
-
-    // CANVAS VTT BÁSICO
+    // CANVAS & DESENHO DE OBJETOS
+    let canvas, ctx;
     function initCanvas() {
-      const canvas = document.getElementById('vtt-canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = window.innerWidth - 320;
-      canvas.height = window.innerHeight - 50;
+      canvas = document.getElementById('vtt-canvas');
+      ctx = canvas.getContext('2d');
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
 
-      ctx.fillStyle = '#11141a';
+      canvas.addEventListener('mousedown', onMouseDown);
+      canvas.addEventListener('mousemove', onMouseMove);
+      canvas.addEventListener('mouseup', onMouseUp);
+
+      drawCanvas();
+    }
+
+    function resizeCanvas() {
+      canvas.width = document.getElementById('vtt-viewport').clientWidth;
+      canvas.height = document.getElementById('vtt-viewport').clientHeight;
+      drawCanvas();
+    }
+
+    function drawCanvas() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Fundo Escuro Grid
+      ctx.fillStyle = '#0a0b0e';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Desenha Grid
-      ctx.strokeStyle = '#1a202c';
+      // Desenha Linhas do Grid
+      ctx.strokeStyle = '#181d28';
       ctx.lineWidth = 1;
       const gridSize = 40;
       for (let x = 0; x < canvas.width; x += gridSize) {
@@ -520,22 +505,135 @@
       for (let y = 0; y < canvas.height; y += gridSize) {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
       }
+
+      const curScene = scenes.find(s => s.id === activeSceneId);
+      if (!curScene) return;
+
+      // Desenha Tokens e Objetos
+      curScene.tokens.forEach(tok => {
+        ctx.beginPath();
+        ctx.arc(tok.x, tok.y, 18, 0, Math.PI * 2);
+        ctx.fillStyle = tok.color || '#d4af37';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(tok.icon || '♟️', tok.x, tok.y);
+
+        // Rótulo/Nome
+        ctx.font = '10px sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(tok.label, tok.x, tok.y + 28);
+      });
     }
 
-    // ÁUDIO DO YOUTUBE
-    function playAudioStream() {
-      const url = document.getElementById('yt-url').value;
-      if (!url) return;
-      addLog(`Música ambiente alterada por ${currentUser.name}`, 'msg');
-      broadcast({ type: 'audio', url: url });
+    function onMouseDown(e) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const curScene = scenes.find(s => s.id === activeSceneId);
+      if (!curScene) return;
+
+      // Procura Token clicado
+      selectedToken = curScene.tokens.find(t => Math.hypot(t.x - mouseX, t.y - mouseY) < 20);
+      if (selectedToken) {
+        isDragging = true;
+        dragOffset = { x: mouseX - selectedToken.x, y: mouseY - selectedToken.y };
+      }
     }
 
-    function syncAudio(url) {
-      addLog(`Tocando música ambiente recebida da sala...`, 'msg');
+    function onMouseMove(e) {
+      if (isDragging && selectedToken) {
+        const rect = canvas.getBoundingClientRect();
+        selectedToken.x = e.clientX - rect.left - dragOffset.x;
+        selectedToken.y = e.clientY - rect.top - dragOffset.y;
+        drawCanvas();
+        if (user.role === 'dm') syncStateToPlayers();
+      }
     }
 
-    function setVolume(val) {
-      // Ajusta volume do áudio local
+    function onMouseUp() {
+      isDragging = false;
+      selectedToken = null;
+    }
+
+    function togglePalette() {
+      const p = document.getElementById('objects-palette');
+      p.style.display = p.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function spawnObject(type, label) {
+      const curScene = scenes.find(s => s.id === activeSceneId);
+      if (!curScene) return;
+
+      const icons = { monster: '👹', npc: '🧙‍♂️', chest: '📦', door: '🚪', trap: '⚠️', fire: '🔥' };
+      curScene.tokens.push({
+        id: 'obj_' + Date.now(), label, x: 200, y: 200, color: '#e74c3c', icon: icons[type] || '📦'
+      });
+      drawCanvas();
+      syncStateToPlayers();
+      togglePalette();
+    }
+
+    function setTool(tool) {
+      currentTool = tool;
+      document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`tool-${tool}`)?.classList.add('active');
+    }
+
+    // ROLAGEM DE DADOS E LOGS
+    function addLog(text, msgType = 'msg', author = '') {
+      const chat = document.getElementById('chat-messages');
+      const el = document.createElement('div');
+      el.className = `chat-msg ${msgType}`;
+      el.innerHTML = author ? `<div class="author">${author}</div>${text}` : text;
+      chat.appendChild(el);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function quickRoll(sides) {
+      const res = Math.floor(Math.random() * sides) + 1;
+      const isSecret = document.getElementById('secret-roll-flag')?.checked;
+      const text = `Rolou 1d${sides} ➔ <strong>[${res}]</strong>`;
+
+      if (isSecret && user.role === 'dm') {
+        addLog(text + ' (Secreto)', 'secret', user.name);
+      } else {
+        addLog(text, 'roll', user.name);
+        broadcast({ type: 'log', text, msgType: 'roll', author: user.name });
+      }
+    }
+
+    function rollCheck(name, score) {
+      const mod = Math.floor((score - 10) / 2);
+      const roll = Math.floor(Math.random() * 20) + 1;
+      const text = `Teste de <strong>${name}</strong>: d20(${roll}) + ${mod} ➔ <strong>[${roll + mod}]</strong>`;
+      addLog(text, 'roll', user.charName);
+      broadcast({ type: 'log', text, msgType: 'roll', author: user.charName });
+    }
+
+    function rollAttack(weapon, mod, dmg) {
+      const roll = Math.floor(Math.random() * 20) + 1;
+      const text = `Ataque <strong>${weapon}</strong>: d20(${roll}) + ${mod} ➔ <strong>[${roll + mod}] para acertar</strong> | Dano: [${dmg}]`;
+      addLog(text, 'roll', user.charName);
+      broadcast({ type: 'log', text, msgType: 'roll', author: user.charName });
+    }
+
+    // FICHA E HP
+    function modHP(val) {
+      const input = document.getElementById('hp-curr');
+      input.value = parseInt(input.value || 0) + val;
+    }
+
+    function switchMainTab(tab) {
+      document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+      document.getElementById(`view-${tab}`).classList.add('active');
+      if (tab === 'vtt') resizeCanvas();
     }
   </script>
 </body>
